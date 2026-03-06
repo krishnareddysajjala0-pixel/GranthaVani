@@ -3,6 +3,7 @@ import socketserver
 import json
 import os
 import urllib.parse
+import urllib.request
 
 # Use PORT from environment variable or default to 8000
 PORT = int(os.environ.get("PORT", 8000))
@@ -53,6 +54,30 @@ class TeluguHandler(http.server.SimpleHTTPRequestHandler):
                     return
             
             self.send_error(404, "File not found")
+            return
+
+        # Proxy for Google TTS to avoid CORS
+        if url.path == "/api/tts":
+            query = urllib.parse.parse_qs(url.query)
+            text = query.get("text", [""])[0]
+            lang = query.get("lang", ["te"])[0]
+            if not text:
+                self.send_error(400, "No text provided")
+                return
+            # Limit text length to 200 chars per request (Google TTS limit)
+            text = text[:200]
+            tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={lang}&client=tw-ob&q={urllib.parse.quote(text)}"
+            try:
+                req = urllib.request.Request(tts_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    audio_data = resp.read()
+                self.send_response(200)
+                self.send_header('Content-type', 'audio/mpeg')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(audio_data)
+            except Exception as e:
+                self.send_error(500, f"TTS error: {e}")
             return
 
         return super().do_GET()

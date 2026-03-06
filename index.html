@@ -406,22 +406,33 @@
         // Initialize Lucide
         lucide.createIcons();
 
-        // Load & auto-select the best Telugu voice available
+        // Cloud voice definitions (use /api/tts proxy)
+        const CLOUD_VOICES = [
+            { name: "☁️ Telugu Female (Cloud)", lang: "te", type: "cloud" },
+            { name: "☁️ Telugu Male (Cloud)", lang: "te", type: "cloud" },
+            { name: "☁️ Hindi (Cloud)", lang: "hi", type: "cloud" },
+            { name: "☁️ English (Cloud)", lang: "en", type: "cloud" }
+        ];
+
+        // Load & populate the voice dropdown (cloud + native)
         function loadVoices() {
             state.voices = synth.getVoices();
-            if (!state.voices.length) return;
 
-            el.voiceSelect.innerHTML = state.voices
-                .map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`)
+            // Build option list: cloud voices first, then native
+            const cloudOptions = CLOUD_VOICES
+                .map((v, i) => `<option value="cloud:${i}">${v.name}</option>`)
                 .join('');
 
-            // Auto-select: prefer Telugu Natural > Telugu > any Indian English
-            let best = state.voices.findIndex(v => v.lang === 'te-IN' && v.name.toLowerCase().includes('natural'));
-            if (best === -1) best = state.voices.findIndex(v => v.lang === 'te-IN');
-            if (best === -1) best = state.voices.findIndex(v => v.lang.startsWith('te'));
-            if (best === -1) best = 0; // fallback to first voice
+            const nativeOptions = state.voices
+                .map((v, i) => `<option value="native:${i}">${v.name} (${v.lang})</option>`)
+                .join('');
 
-            el.voiceSelect.value = best;
+            el.voiceSelect.innerHTML =
+                `<optgroup label="☁️ Cloud Voices">${cloudOptions}</optgroup>` +
+                (nativeOptions ? `<optgroup label="🖥️ Device Voices">${nativeOptions}</optgroup>` : '');
+
+            // Default select the first cloud Telugu voice
+            el.voiceSelect.value = 'cloud:0';
             lucide.createIcons();
         }
 
@@ -513,8 +524,20 @@
             speakCurrent();
         }
 
+        // Cloud audio player
+        let cloudAudio = null;
+
+        function stopCloudAudio() {
+            if (cloudAudio) {
+                cloudAudio.pause();
+                cloudAudio.src = '';
+                cloudAudio = null;
+            }
+        }
+
         function pause() {
             state.isPlaying = false;
+            stopCloudAudio();
             synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
@@ -522,6 +545,7 @@
 
         function stop() {
             state.isPlaying = false;
+            stopCloudAudio();
             synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
@@ -536,33 +560,70 @@
             }
 
             const text = state.sentences[state.currentIndex];
-            const voice = state.voices[parseInt(el.voiceSelect.value)];
+            const voiceVal = el.voiceSelect.value; // e.g. "cloud:0" or "native:3"
+            const [type, idx] = voiceVal.split(':');
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            if (voice) utterance.voice = voice;
-            utterance.rate = state.rate;
-            utterance.pitch = state.pitch;
-            utterance.volume = state.volume;
+            if (type === 'cloud') {
+                const cloudVoice = CLOUD_VOICES[parseInt(idx)];
+                const encodedText = encodeURIComponent(text.substring(0, 200));
+                const ttsUrl = `/api/tts?lang=${cloudVoice.lang}&text=${encodedText}`;
 
-            utterance.onend = () => {
-                if (state.isPlaying) {
-                    state.currentIndex++;
-                    updateDisplay();
+                stopCloudAudio();
+                cloudAudio = new Audio(ttsUrl);
+                cloudAudio.volume = state.volume;
+                cloudAudio.playbackRate = Math.min(Math.max(state.rate, 0.5), 4);
+
+                cloudAudio.onended = () => {
+                    if (state.isPlaying) {
+                        state.currentIndex++;
+                        updateDisplay();
+                        speakCurrent();
+                    }
+                };
+
+                cloudAudio.onerror = () => {
+                    console.error('Cloud TTS error, falling back to native');
+                    // Auto-fall back to native speech if cloud fails
+                    el.voiceSelect.value = state.voices.length > 0 ? 'native:0' : 'cloud:0';
                     speakCurrent();
-                }
-            };
+                };
 
-            utterance.onerror = (e) => {
-                // 'interrupted' is normal when stop/pause is called, not a real error
-                if (e.error !== 'interrupted') {
-                    console.error("Speech Error", e.error);
-                }
-                state.isPlaying = false;
-                el.playIcon.setAttribute('data-lucide', 'play');
-                lucide.createIcons();
-            };
+                cloudAudio.play().catch(e => {
+                    console.error('Audio play error:', e);
+                    state.isPlaying = false;
+                    el.playIcon.setAttribute('data-lucide', 'play');
+                    lucide.createIcons();
+                });
 
-            synth.speak(utterance);
+            } else {
+                // Native Web Speech API
+                const voice = state.voices[parseInt(idx)];
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (voice) utterance.voice = voice;
+                utterance.rate = state.rate;
+                utterance.pitch = state.pitch;
+                utterance.volume = state.volume;
+
+                utterance.onend = () => {
+                    if (state.isPlaying) {
+                        state.currentIndex++;
+                        updateDisplay();
+                        speakCurrent();
+                    }
+                };
+
+                utterance.onerror = (e) => {
+                    if (e.error !== 'interrupted') {
+                        console.error('Speech Error', e.error);
+                    }
+                    state.isPlaying = false;
+                    el.playIcon.setAttribute('data-lucide', 'play');
+                    lucide.createIcons();
+                };
+
+                synth.speak(utterance);
+            }
+
             updateDisplay();
         }
 
