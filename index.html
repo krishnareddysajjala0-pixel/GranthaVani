@@ -379,6 +379,7 @@
             currentIndex: 0,
             isPlaying: false,
             voices: [],
+            allVoices: [],
             pitch: 1,
             rate: 1,
             volume: 1,
@@ -409,16 +410,22 @@
         // Initialize Lucide
         lucide.createIcons();
 
-        // Load Voices
-        function loadVoices() {
-            // First, check for Cloud Voices
-            const cloudVoices = [
-                { name: "Telugu Female (Cloud)", value: "Telugu Female", lang: "te-IN", type: "cloud" },
-                { name: "Telugu Male (Cloud)", value: "Telugu Male", lang: "te-IN", type: "cloud" },
-                { name: "UK English Female (Cloud)", value: "UK English Female", lang: "en-GB", type: "cloud" },
-                { name: "US English Female (Cloud)", value: "US English Female", lang: "us-EN", type: "cloud" }
-            ];
+        // Define cloud voices
+        const cloudVoices = [
+            { name: "Telugu Female (Cloud)", value: "Telugu Female", lang: "te-IN", type: "cloud" },
+            { name: "Telugu Male (Cloud)", value: "Telugu Male", lang: "te-IN", type: "cloud" },
+            { name: "UK English Female (Cloud)", value: "UK English Female", lang: "en-GB", type: "cloud" },
+            { name: "US English Female (Cloud)", value: "US English Female", lang: "us-EN", type: "cloud" }
+        ];
 
+        // Initialize immediately so clicking a book works right away
+        state.allVoices = [...cloudVoices];
+        el.voiceSelect.innerHTML = state.allVoices
+            .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === 'cloud' ? 'selected' : ''}>${v.name}</option>`)
+            .join('');
+
+        // Load Voices (adds native voices once browser has them)
+        function loadVoices() {
             const nativeVoices = synth.getVoices().map(v => ({
                 name: `${v.name} (${v.lang})`,
                 value: v.name,
@@ -430,7 +437,7 @@
             state.allVoices = [...cloudVoices, ...nativeVoices];
 
             el.voiceSelect.innerHTML = state.allVoices
-                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === "cloud" ? 'selected' : ''}>${v.name}</option>`)
+                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === 'cloud' ? 'selected' : ''}>${v.name}</option>`)
                 .join('');
 
             lucide.createIcons();
@@ -439,9 +446,7 @@
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
-
-        // ResponsiveVoice might take a moment to initialize
-        setTimeout(loadVoices, 1000);
+        loadVoices();
 
         // API Calls
         async function fetchFiles() {
@@ -527,7 +532,7 @@
 
         function pause() {
             state.isPlaying = false;
-            if (state.useCloud) {
+            if (state.useCloud && typeof responsiveVoice !== 'undefined') {
                 responsiveVoice.cancel();
             } else {
                 synth.cancel();
@@ -538,7 +543,7 @@
 
         function stop() {
             state.isPlaying = false;
-            if (state.useCloud) {
+            if (state.useCloud && typeof responsiveVoice !== 'undefined') {
                 responsiveVoice.cancel();
             } else {
                 synth.cancel();
