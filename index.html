@@ -414,22 +414,14 @@
             { name: "☁️ English (Cloud)", lang: "en", type: "cloud" }
         ];
 
-        // Load & populate the voice dropdown (cloud + native)
+        // Load & populate the voice dropdown (cloud only)
         function loadVoices() {
-            state.voices = synth.getVoices();
+            state.voices = synth.getVoices(); // keep loaded for fallback
 
-            // Build option list: cloud voices first, then native
-            const cloudOptions = CLOUD_VOICES
+            // Show only cloud voices in the dropdown
+            el.voiceSelect.innerHTML = CLOUD_VOICES
                 .map((v, i) => `<option value="cloud:${i}">${v.name}</option>`)
                 .join('');
-
-            const nativeOptions = state.voices
-                .map((v, i) => `<option value="native:${i}">${v.name} (${v.lang})</option>`)
-                .join('');
-
-            el.voiceSelect.innerHTML =
-                `<optgroup label="☁️ Cloud Voices">${cloudOptions}</optgroup>` +
-                (nativeOptions ? `<optgroup label="🖥️ Device Voices">${nativeOptions}</optgroup>` : '');
 
             // Default select the first cloud Telugu voice
             el.voiceSelect.value = 'cloud:0';
@@ -533,12 +525,13 @@
                 cloudAudio.src = '';
                 cloudAudio = null;
             }
+            // Always cancel native speech too to prevent overlap
+            synth.cancel();
         }
 
         function pause() {
             state.isPlaying = false;
             stopCloudAudio();
-            synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
@@ -546,7 +539,6 @@
         function stop() {
             state.isPlaying = false;
             stopCloudAudio();
-            synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
