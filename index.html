@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telugu Granthalu Reader</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #9d4edd;
+            --primary-hover: #7b2cbf;
+            --bg: #0f0c29;
+            --surface: rgba(255, 255, 255, 0.05);
+            --text: #e0e1dd;
+            --text-dim: #778da9;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar / File Explorer */
+        aside {
+            width: 320px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(to right, #9d4edd, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .file-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            border: 1px solid transparent;
+        }
+
+        .file-item:hover {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .file-item.active {
+            background: rgba(157, 78, 221, 0.15);
+            color: white;
+            border-color: rgba(157, 78, 221, 0.3);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .reader-container {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .text-card {
+            max-width: 800px;
+            width: 100%;
+            background: var(--glass);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            min-height: 400px;
+            position: relative;
+        }
+
+        .text-content {
+            font-size: 1.5rem;
+            line-height: 1.8;
+            color: var(--text);
+            white-space: pre-wrap;
+            text-align: justify;
+        }
+
+        .highlight {
+            background: rgba(157, 78, 221, 0.3);
+            border-bottom: 2px solid var(--primary);
+            border-radius: 4px;
+            padding: 2px 0;
+        }
+
+        /* Player Controls */
+        .player-bar {
+            height: 120px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+        }
+
+        .playback-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn {
+            background: none;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            padding: 12px;
+            border-radius: 50%;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: var(--surface);
+            transform: scale(1.1);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            width: 64px;
+            height: 64px;
+            box-shadow: 0 8px 20px rgba(157, 78, 221, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: scale(1.05) translateY(-2px);
+        }
+
+        .settings-controls {
+            display: flex;
+            gap: 32px;
+            flex: 1;
+            max-width: 600px;
+        }
+
+        .setting-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: var(--surface);
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        /* Voice Selector */
+        .voice-selector {
+            background: var(--surface);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 8px;
+            outline: none;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--surface);
+            cursor: pointer;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--surface);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+    </style>
+</head>
+<body>
+    <div id="loader"><div class="spinner"></div></div>
+
+    <aside>
+        <div class="sidebar-header">
+            <h1><i data-lucide="book-open"></i> Telugu Granthalu</h1>
+        </div>
+        <div class="file-list" id="fileList">
+            <!-- Files injected here -->
+        </div>
+    </aside>
+
+    <main>
+        <div class="progress-container" id="progressBarContainer">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="reader-container">
+            <div class="text-card">
+                <div class="text-content" id="textContent">
+                    Select a book to start reading...
+                </div>
+            </div>
+        </div>
+
+        <div class="player-bar">
+            <div class="playback-controls">
+                <button class="btn" id="prevBtn" title="Previous Sentence">
+                    <i data-lucide="skip-back"></i>
+                </button>
+                <button class="btn btn-primary" id="playPauseBtn" title="Play/Pause">
+                    <i data-lucide="play" id="playIcon"></i>
+                </button>
+                <button class="btn" id="nextBtn" title="Next Sentence">
+                    <i data-lucide="skip-forward"></i>
+                </button>
+                <button class="btn" id="stopBtn" title="Stop">
+                    <i data-lucide="square"></i>
+                </button>
+            </div>
+
+            <div class="settings-controls">
+                <div class="setting-group">
+                    <div class="setting-label">Voice <span id="voiceVal"></span></div>
+                    <select class="voice-selector" id="voiceSelect"></select>
+                </div>
+                <div class="setting-group">
+                    <div class="setting-label">Rate <span id="rateVal">1x</span></div>
+                    <input type="range" id="rateRange" min="0.1" max="2" step="0.1" value="1">
+                </div>
+                <div class="setting-group">
+                    <div class="setting-label">Pitch <span id="pitchVal">1x</span></div>
+                    <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1">
+                </div>
+                <div class="setting-group">
+                    <div class="setting-label">Volume <span id="volumeVal">100%</span></div>
+                    <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1">
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State Management
+        const state = {
+            currentFile: null,
+            sentences: [],
+            currentIndex: 0,
+            isPlaying: false,
+            voices: [],
+            pitch: 1,
+            rate: 1,
+            volume: 1,
+            selectedVoiceIndex: 0
+        };
+
+        const synth = window.speechSynthesis;
+        let currentUtterance = null;
+
+        // Elements
+        const el = {
+            fileList: document.getElementById('fileList'),
+            textContent: document.getElementById('textContent'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            playIcon: document.getElementById('playIcon'),
+            prevBtn: document.getElementById('prevBtn'),
+            nextBtn: document.getElementById('nextBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            rateRange: document.getElementById('rateRange'),
+            pitchRange: document.getElementById('pitchRange'),
+            volumeRange: document.getElementById('volumeRange'),
+            progressBar: document.getElementById('progressBar'),
+            loader: document.getElementById('loader')
+        };
+
+        // Initialize Lucide
+        lucide.createIcons();
+
+        // Load Voices
+        function loadVoices() {
+            state.voices = synth.getVoices();
+            el.voiceSelect.innerHTML = state.voices
+                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') ? 'selected' : ''}>${v.name} (${v.lang})</option>`)
+                .join('');
+            
+            lucide.createIcons();
+        }
+
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+
+        // API Calls
+        async function fetchFiles() {
+            const res = await fetch('/api/files');
+            const files = await res.json();
+            el.fileList.innerHTML = files.map(f => `
+                <div class="file-item" data-name="${f}">
+                    <i data-lucide="file-text"></i>
+                    ${f}
+                </div>
+            `).join('');
+            lucide.createIcons();
+
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.onclick = () => loadFile(item.dataset.name);
+            });
+            
+            el.loader.style.display = 'none';
+        }
+
+        async function loadFile(name) {
+            stop();
+            state.currentFile = name;
+            
+            // UI Update
+            document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`[data-name="${name}"]`).classList.add('active');
+            
+            el.textContent.innerHTML = "Loading...";
+            
+            const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
+            const text = await res.json(); // Wait, text/plain but I called .json() - fix below
+        }
+
+        // Wait, fixing loadFile text fetching
+        async function loadFileRefined(name) {
+            stop();
+            state.currentFile = name;
+            document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`[data-name="${name}"]`).classList.add('active');
+
+            const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
+            const text = await res.text();
+            
+            // Split into sentences (simple regex for Telugu/English punctuation)
+            state.sentences = text.split(/[.।!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+            
+            // Restore Progress
+            const savedIndex = localStorage.getItem(`read_pos_${name}`);
+            state.currentIndex = savedIndex ? parseInt(savedIndex) : 0;
+            
+            updateDisplay();
+        }
+
+        // Monkey patch loadFile
+        window.loadFile = loadFileRefined;
+
+        function updateDisplay() {
+            if (!state.sentences.length) return;
+            
+            const start = Math.max(0, state.currentIndex - 2);
+            const end = Math.min(state.sentences.length, state.currentIndex + 3);
+            
+            let html = "";
+            for (let i = start; i < end; i++) {
+                if (i === state.currentIndex) {
+                    html += `<span class="highlight">${state.sentences[i]}.</span> `;
+                } else {
+                    html += `<span>${state.sentences[i]}.</span> `;
+                }
+            }
+            
+            el.textContent.innerHTML = html;
+            
+            // Progress
+            const prog = ((state.currentIndex + 1) / state.sentences.length) * 100;
+            el.progressBar.style.width = `${prog}%`;
+            
+            // Save Progress
+            localStorage.setItem(`read_pos_${state.currentFile}`, state.currentIndex);
+        }
+
+        // Playback Logic
+        function play() {
+            if (state.isPlaying) return;
+            state.isPlaying = true;
+            el.playIcon.setAttribute('data-lucide', 'pause');
+            lucide.createIcons();
+            speakCurrent();
+        }
+
+        function pause() {
+            state.isPlaying = false;
+            synth.cancel();
+            el.playIcon.setAttribute('data-lucide', 'play');
+            lucide.createIcons();
+        }
+
+        function stop() {
+            state.isPlaying = false;
+            synth.cancel();
+            el.playIcon.setAttribute('data-lucide', 'play');
+            lucide.createIcons();
+        }
+
+        function speakCurrent() {
+            if (!state.isPlaying || state.currentIndex >= state.sentences.length) {
+                state.isPlaying = false;
+                el.playIcon.setAttribute('data-lucide', 'play');
+                lucide.createIcons();
+                return;
+            }
+
+            const text = state.sentences[state.currentIndex];
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            
+            // Settings
+            currentUtterance.voice = state.voices[el.voiceSelect.value];
+            currentUtterance.rate = state.rate;
+            currentUtterance.pitch = state.pitch;
+            currentUtterance.volume = state.volume;
+
+            currentUtterance.onend = () => {
+                if (state.isPlaying) {
+                    state.currentIndex++;
+                    updateDisplay();
+                    speakCurrent();
+                }
+            };
+
+            currentUtterance.onerror = (e) => {
+                console.error("Speech Error", e);
+                state.isPlaying = false;
+            };
+
+            synth.speak(currentUtterance);
+            updateDisplay();
+        }
+
+        // Controls
+        el.playPauseBtn.onclick = () => {
+            if (state.isPlaying) pause();
+            else play();
+        };
+
+        el.nextBtn.onclick = () => {
+            synth.cancel();
+            state.currentIndex = Math.min(state.sentences.length - 1, state.currentIndex + 1);
+            updateDisplay();
+            if (state.isPlaying) speakCurrent();
+        };
+
+        el.prevBtn.onclick = () => {
+            synth.cancel();
+            state.currentIndex = Math.max(0, state.currentIndex - 1);
+            updateDisplay();
+            if (state.isPlaying) speakCurrent();
+        };
+
+        el.stopBtn.onclick = stop;
+
+        // Settings Listeners
+        el.rateRange.oninput = (e) => {
+            state.rate = parseFloat(e.target.value);
+            document.getElementById('rateVal').innerText = state.rate + "x";
+        };
+        el.pitchRange.oninput = (e) => {
+            state.pitch = parseFloat(e.target.value);
+            document.getElementById('pitchVal').innerText = state.pitch + "x";
+        };
+        el.volumeRange.oninput = (e) => {
+            state.volume = parseFloat(e.target.value);
+            document.getElementById('volumeVal').innerText = Math.round(state.volume * 100) + "%";
+        };
+
+        fetchFiles();
+    </script>
+</body>
+</html>
