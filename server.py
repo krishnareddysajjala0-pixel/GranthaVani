@@ -4,9 +4,11 @@ import json
 import os
 import urllib.parse
 
-PORT = 8000
+# Use PORT from environment variable or default to 8000
+PORT = int(os.environ.get("PORT", 8000))
 DIRECTORY = os.path.dirname(os.path.abspath(__file__))
-GRANTHALU_DIR = os.path.dirname(DIRECTORY)
+# Data is now inside the web-app/data directory
+GRANTHALU_DIR = os.path.join(DIRECTORY, "data")
 
 class TeluguHandler(http.server.SimpleHTTPRequestHandler):
     def translate_path(self, path):
@@ -22,12 +24,14 @@ class TeluguHandler(http.server.SimpleHTTPRequestHandler):
         if url.path == "/api/files":
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             files = []
-            for f in os.listdir(GRANTHALU_DIR):
-                if f.endswith(".txt"):
-                    files.append(f)
+            if os.path.exists(GRANTHALU_DIR):
+                for f in os.listdir(GRANTHALU_DIR):
+                    if f.endswith(".txt"):
+                        files.append(f)
             
             self.wfile.write(json.dumps(sorted(files)).encode())
             return
@@ -42,6 +46,7 @@ class TeluguHandler(http.server.SimpleHTTPRequestHandler):
                 if os.path.exists(filepath):
                     self.send_response(200)
                     self.send_header('Content-type', 'text/plain; charset=utf-8')
+                    self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     with open(filepath, 'r', encoding='utf-8') as f:
                         self.wfile.write(f.read().encode('utf-8'))
@@ -53,7 +58,8 @@ class TeluguHandler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
 os.chdir(DIRECTORY)
-with socketserver.TCPServer(("", PORT), TeluguHandler) as httpd:
+# Use 0.0.0.0 to allow external access in Render
+with socketserver.TCPServer(("0.0.0.0", PORT), TeluguHandler) as httpd:
     print(f"Serving at port {PORT}")
     print(f"Granthalu directory: {GRANTHALU_DIR}")
     httpd.serve_forever()
