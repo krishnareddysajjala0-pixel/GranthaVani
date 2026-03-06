@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telugu Granthalu Reader</title>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://code.responsivevoice.org/responsivevoice.js?key=fK7P5Y7k"></script>
     <style>
         :root {
             --primary: #9d4edd;
@@ -379,12 +378,9 @@
             currentIndex: 0,
             isPlaying: false,
             voices: [],
-            allVoices: [],
             pitch: 1,
             rate: 1,
-            volume: 1,
-            selectedVoiceIndex: 0,
-            useCloud: true // Toggle for cloud vs native
+            volume: 1
         };
 
         const synth = window.speechSynthesis;
@@ -410,36 +406,22 @@
         // Initialize Lucide
         lucide.createIcons();
 
-        // Define cloud voices
-        const cloudVoices = [
-            { name: "Telugu Female (Cloud)", value: "Telugu Female", lang: "te-IN", type: "cloud" },
-            { name: "Telugu Male (Cloud)", value: "Telugu Male", lang: "te-IN", type: "cloud" },
-            { name: "UK English Female (Cloud)", value: "UK English Female", lang: "en-GB", type: "cloud" },
-            { name: "US English Female (Cloud)", value: "US English Female", lang: "us-EN", type: "cloud" }
-        ];
-
-        // Initialize immediately so clicking a book works right away
-        state.allVoices = [...cloudVoices];
-        el.voiceSelect.innerHTML = state.allVoices
-            .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === 'cloud' ? 'selected' : ''}>${v.name}</option>`)
-            .join('');
-
-        // Load Voices (adds native voices once browser has them)
+        // Load & auto-select the best Telugu voice available
         function loadVoices() {
-            const nativeVoices = synth.getVoices().map(v => ({
-                name: `${v.name} (${v.lang})`,
-                value: v.name,
-                lang: v.lang,
-                type: "native",
-                voiceObj: v
-            }));
+            state.voices = synth.getVoices();
+            if (!state.voices.length) return;
 
-            state.allVoices = [...cloudVoices, ...nativeVoices];
-
-            el.voiceSelect.innerHTML = state.allVoices
-                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === 'cloud' ? 'selected' : ''}>${v.name}</option>`)
+            el.voiceSelect.innerHTML = state.voices
+                .map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`)
                 .join('');
 
+            // Auto-select: prefer Telugu Natural > Telugu > any Indian English
+            let best = state.voices.findIndex(v => v.lang === 'te-IN' && v.name.toLowerCase().includes('natural'));
+            if (best === -1) best = state.voices.findIndex(v => v.lang === 'te-IN');
+            if (best === -1) best = state.voices.findIndex(v => v.lang.startsWith('te'));
+            if (best === -1) best = 0; // fallback to first voice
+
+            el.voiceSelect.value = best;
             lucide.createIcons();
         }
 
@@ -447,6 +429,7 @@
             synth.onvoiceschanged = loadVoices;
         }
         loadVoices();
+
 
         // API Calls
         async function fetchFiles() {
@@ -532,22 +515,14 @@
 
         function pause() {
             state.isPlaying = false;
-            if (state.useCloud && typeof responsiveVoice !== 'undefined') {
-                responsiveVoice.cancel();
-            } else {
-                synth.cancel();
-            }
+            synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
 
         function stop() {
             state.isPlaying = false;
-            if (state.useCloud && typeof responsiveVoice !== 'undefined') {
-                responsiveVoice.cancel();
-            } else {
-                synth.cancel();
-            }
+            synth.cancel();
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
@@ -561,48 +536,33 @@
             }
 
             const text = state.sentences[state.currentIndex];
-            const selectedVoice = state.allVoices[el.voiceSelect.value];
-            state.useCloud = selectedVoice.type === "cloud";
+            const voice = state.voices[parseInt(el.voiceSelect.value)];
 
-            if (state.useCloud) {
-                responsiveVoice.speak(text, selectedVoice.value, {
-                    pitch: state.pitch,
-                    rate: state.rate,
-                    volume: state.volume,
-                    onend: () => {
-                        if (state.isPlaying) {
-                            state.currentIndex++;
-                            updateDisplay();
-                            speakCurrent();
-                        }
-                    },
-                    onerror: (e) => {
-                        console.error("Cloud Speech Error", e);
-                        state.isPlaying = false;
-                    }
-                });
-            } else {
-                currentUtterance = new SpeechSynthesisUtterance(text);
-                currentUtterance.voice = selectedVoice.voiceObj;
-                currentUtterance.rate = state.rate;
-                currentUtterance.pitch = state.pitch;
-                currentUtterance.volume = state.volume;
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (voice) utterance.voice = voice;
+            utterance.rate = state.rate;
+            utterance.pitch = state.pitch;
+            utterance.volume = state.volume;
 
-                currentUtterance.onend = () => {
-                    if (state.isPlaying) {
-                        state.currentIndex++;
-                        updateDisplay();
-                        speakCurrent();
-                    }
-                };
+            utterance.onend = () => {
+                if (state.isPlaying) {
+                    state.currentIndex++;
+                    updateDisplay();
+                    speakCurrent();
+                }
+            };
 
-                currentUtterance.onerror = (e) => {
-                    console.error("Native Speech Error", e);
-                    state.isPlaying = false;
-                };
+            utterance.onerror = (e) => {
+                // 'interrupted' is normal when stop/pause is called, not a real error
+                if (e.error !== 'interrupted') {
+                    console.error("Speech Error", e.error);
+                }
+                state.isPlaying = false;
+                el.playIcon.setAttribute('data-lucide', 'play');
+                lucide.createIcons();
+            };
 
-                synth.speak(currentUtterance);
-            }
+            synth.speak(utterance);
             updateDisplay();
         }
 
@@ -613,14 +573,14 @@
         };
 
         el.nextBtn.onclick = () => {
-            synth.cancel();
+            stop();
             state.currentIndex = Math.min(state.sentences.length - 1, state.currentIndex + 1);
             updateDisplay();
             if (state.isPlaying) speakCurrent();
         };
 
         el.prevBtn.onclick = () => {
-            synth.cancel();
+            stop();
             state.currentIndex = Math.max(0, state.currentIndex - 1);
             updateDisplay();
             if (state.isPlaying) speakCurrent();
