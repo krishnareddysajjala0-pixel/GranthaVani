@@ -468,36 +468,28 @@
 
             // UI Update
             document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
-            document.querySelector(`[data-name="${name}"]`).classList.add('active');
+            const activeItem = document.querySelector(`[data-name="${name}"]`);
+            if (activeItem) activeItem.classList.add('active');
 
             el.textContent.innerHTML = "Loading...";
 
-            const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
-            const text = await res.json(); // Wait, text/plain but I called .json() - fix below
+            try {
+                const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
+                const text = await res.text();
+
+                // Split into sentences (simple regex for Telugu/English punctuation)
+                state.sentences = text.split(/[.।!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+                // Restore Progress
+                const savedIndex = localStorage.getItem(`read_pos_${name}`);
+                state.currentIndex = (savedIndex && !isNaN(savedIndex)) ? parseInt(savedIndex) : 0;
+
+                updateDisplay();
+            } catch (err) {
+                console.error("Failed to load file:", err);
+                el.textContent.innerHTML = "Error loading book. Please check your connection.";
+            }
         }
-
-        // Wait, fixing loadFile text fetching
-        async function loadFileRefined(name) {
-            stop();
-            state.currentFile = name;
-            document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
-            document.querySelector(`[data-name="${name}"]`).classList.add('active');
-
-            const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
-            const text = await res.text();
-
-            // Split into sentences (simple regex for Telugu/English punctuation)
-            state.sentences = text.split(/[.।!?]+/).map(s => s.trim()).filter(s => s.length > 0);
-
-            // Restore Progress
-            const savedIndex = localStorage.getItem(`read_pos_${name}`);
-            state.currentIndex = savedIndex ? parseInt(savedIndex) : 0;
-
-            updateDisplay();
-        }
-
-        // Monkey patch loadFile
-        window.loadFile = loadFileRefined;
 
         function updateDisplay() {
             if (!state.sentences.length) return;
