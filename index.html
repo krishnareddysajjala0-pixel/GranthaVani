@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="te">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telugu Granthalu Reader</title>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=fK7P5Y7k"></script>
     <style>
         :root {
             --primary: #9d4edd;
@@ -114,7 +116,7 @@
             padding: 40px;
             border-radius: 24px;
             border: 1px solid var(--glass-border);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
             min-height: 400px;
             position: relative;
         }
@@ -280,16 +282,35 @@
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-dim);
+        }
     </style>
 </head>
+
 <body>
-    <div id="loader"><div class="spinner"></div></div>
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
 
     <aside>
         <div class="sidebar-header">
@@ -361,7 +382,8 @@
             pitch: 1,
             rate: 1,
             volume: 1,
-            selectedVoiceIndex: 0
+            selectedVoiceIndex: 0,
+            useCloud: true // Toggle for cloud vs native
         };
 
         const synth = window.speechSynthesis;
@@ -389,18 +411,37 @@
 
         // Load Voices
         function loadVoices() {
-            state.voices = synth.getVoices();
-            el.voiceSelect.innerHTML = state.voices
-                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') ? 'selected' : ''}>${v.name} (${v.lang})</option>`)
+            // First, check for Cloud Voices
+            const cloudVoices = [
+                { name: "Telugu Female (Cloud)", value: "Telugu Female", lang: "te-IN", type: "cloud" },
+                { name: "Telugu Male (Cloud)", value: "Telugu Male", lang: "te-IN", type: "cloud" },
+                { name: "UK English Female (Cloud)", value: "UK English Female", lang: "en-GB", type: "cloud" },
+                { name: "US English Female (Cloud)", value: "US English Female", lang: "us-EN", type: "cloud" }
+            ];
+
+            const nativeVoices = synth.getVoices().map(v => ({
+                name: `${v.name} (${v.lang})`,
+                value: v.name,
+                lang: v.lang,
+                type: "native",
+                voiceObj: v
+            }));
+
+            state.allVoices = [...cloudVoices, ...nativeVoices];
+
+            el.voiceSelect.innerHTML = state.allVoices
+                .map((v, i) => `<option value="${i}" ${v.lang.includes('te') && v.type === "cloud" ? 'selected' : ''}>${v.name}</option>`)
                 .join('');
-            
+
             lucide.createIcons();
         }
 
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
-        loadVoices();
+
+        // ResponsiveVoice might take a moment to initialize
+        setTimeout(loadVoices, 1000);
 
         // API Calls
         async function fetchFiles() {
@@ -417,20 +458,20 @@
             document.querySelectorAll('.file-item').forEach(item => {
                 item.onclick = () => loadFile(item.dataset.name);
             });
-            
+
             el.loader.style.display = 'none';
         }
 
         async function loadFile(name) {
             stop();
             state.currentFile = name;
-            
+
             // UI Update
             document.querySelectorAll('.file-item').forEach(i => i.classList.remove('active'));
             document.querySelector(`[data-name="${name}"]`).classList.add('active');
-            
+
             el.textContent.innerHTML = "Loading...";
-            
+
             const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
             const text = await res.json(); // Wait, text/plain but I called .json() - fix below
         }
@@ -444,14 +485,14 @@
 
             const res = await fetch(`/api/file?name=${encodeURIComponent(name)}`);
             const text = await res.text();
-            
+
             // Split into sentences (simple regex for Telugu/English punctuation)
             state.sentences = text.split(/[.।!?]+/).map(s => s.trim()).filter(s => s.length > 0);
-            
+
             // Restore Progress
             const savedIndex = localStorage.getItem(`read_pos_${name}`);
             state.currentIndex = savedIndex ? parseInt(savedIndex) : 0;
-            
+
             updateDisplay();
         }
 
@@ -460,10 +501,10 @@
 
         function updateDisplay() {
             if (!state.sentences.length) return;
-            
+
             const start = Math.max(0, state.currentIndex - 2);
             const end = Math.min(state.sentences.length, state.currentIndex + 3);
-            
+
             let html = "";
             for (let i = start; i < end; i++) {
                 if (i === state.currentIndex) {
@@ -472,13 +513,13 @@
                     html += `<span>${state.sentences[i]}.</span> `;
                 }
             }
-            
+
             el.textContent.innerHTML = html;
-            
+
             // Progress
             const prog = ((state.currentIndex + 1) / state.sentences.length) * 100;
             el.progressBar.style.width = `${prog}%`;
-            
+
             // Save Progress
             localStorage.setItem(`read_pos_${state.currentFile}`, state.currentIndex);
         }
@@ -494,14 +535,22 @@
 
         function pause() {
             state.isPlaying = false;
-            synth.cancel();
+            if (state.useCloud) {
+                responsiveVoice.cancel();
+            } else {
+                synth.cancel();
+            }
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
 
         function stop() {
             state.isPlaying = false;
-            synth.cancel();
+            if (state.useCloud) {
+                responsiveVoice.cancel();
+            } else {
+                synth.cancel();
+            }
             el.playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
         }
@@ -515,28 +564,48 @@
             }
 
             const text = state.sentences[state.currentIndex];
-            currentUtterance = new SpeechSynthesisUtterance(text);
-            
-            // Settings
-            currentUtterance.voice = state.voices[el.voiceSelect.value];
-            currentUtterance.rate = state.rate;
-            currentUtterance.pitch = state.pitch;
-            currentUtterance.volume = state.volume;
+            const selectedVoice = state.allVoices[el.voiceSelect.value];
+            state.useCloud = selectedVoice.type === "cloud";
 
-            currentUtterance.onend = () => {
-                if (state.isPlaying) {
-                    state.currentIndex++;
-                    updateDisplay();
-                    speakCurrent();
-                }
-            };
+            if (state.useCloud) {
+                responsiveVoice.speak(text, selectedVoice.value, {
+                    pitch: state.pitch,
+                    rate: state.rate,
+                    volume: state.volume,
+                    onend: () => {
+                        if (state.isPlaying) {
+                            state.currentIndex++;
+                            updateDisplay();
+                            speakCurrent();
+                        }
+                    },
+                    onerror: (e) => {
+                        console.error("Cloud Speech Error", e);
+                        state.isPlaying = false;
+                    }
+                });
+            } else {
+                currentUtterance = new SpeechSynthesisUtterance(text);
+                currentUtterance.voice = selectedVoice.voiceObj;
+                currentUtterance.rate = state.rate;
+                currentUtterance.pitch = state.pitch;
+                currentUtterance.volume = state.volume;
 
-            currentUtterance.onerror = (e) => {
-                console.error("Speech Error", e);
-                state.isPlaying = false;
-            };
+                currentUtterance.onend = () => {
+                    if (state.isPlaying) {
+                        state.currentIndex++;
+                        updateDisplay();
+                        speakCurrent();
+                    }
+                };
 
-            synth.speak(currentUtterance);
+                currentUtterance.onerror = (e) => {
+                    console.error("Native Speech Error", e);
+                    state.isPlaying = false;
+                };
+
+                synth.speak(currentUtterance);
+            }
             updateDisplay();
         }
 
@@ -579,4 +648,5 @@
         fetchFiles();
     </script>
 </body>
+
 </html>
