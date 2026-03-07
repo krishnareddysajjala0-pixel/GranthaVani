@@ -8,14 +8,15 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
-            --primary: #9d4edd;
-            --primary-hover: #7b2cbf;
-            --bg: #0f0c29;
-            --surface: rgba(255, 255, 255, 0.05);
-            --text: #e0e1dd;
-            --text-dim: #778da9;
-            --glass: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #bb86fc;
+            --primary-hover: #9965f4;
+            --bg: #0b0915;
+            --surface: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --text-dim: #a0a0c0;
+            --glass: rgba(18, 18, 30, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --accent: #03dac6;
         }
 
         * {
@@ -41,7 +42,77 @@
             border-right: 1px solid var(--glass-border);
             display: flex;
             flex-direction: column;
-            transition: transform 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 100;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            aside {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+            }
+
+            aside.open {
+                transform: translateX(0);
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+            }
+
+            .reader-container {
+                padding: 20px !important;
+            }
+
+            .text-card {
+                padding: 24px !important;
+                border-radius: 16px !important;
+            }
+
+            .text-content {
+                font-size: 1.25rem !important;
+            }
+
+            .player-bar {
+                padding: 15px 20px !important;
+            }
+
+            .playback-controls {
+                gap: 8px !important;
+            }
+
+            .settings-controls {
+                display: none !important;
+                /* Hide settings on small mobile for space */
+            }
+
+            .settings-controls.open {
+                display: flex !important;
+                position: fixed;
+                bottom: 140px;
+                left: 20px;
+                right: 20px;
+                background: #1e1e2d;
+                padding: 20px;
+                border-radius: 16px;
+                flex-direction: column;
+                z-index: 50;
+            }
+        }
+
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 110;
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: flex;
+            }
         }
 
         .sidebar-header {
@@ -137,14 +208,22 @@
 
         /* Player Controls */
         .player-bar {
-            height: 120px;
+            height: auto;
+            min-height: 140px;
             background: var(--glass);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(30px);
             border-top: 1px solid var(--glass-border);
-            padding: 0 40px;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .player-main-controls {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            width: 100%;
             gap: 40px;
         }
 
@@ -159,12 +238,23 @@
             border: none;
             color: var(--text);
             cursor: pointer;
-            padding: 12px;
-            border-radius: 50%;
+            padding: 8px;
+            border-radius: 12px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 4px;
+            min-width: 60px;
+        }
+
+        .btn-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            font-weight: 600;
         }
 
         .btn:hover {
@@ -176,7 +266,13 @@
             background: var(--primary);
             width: 64px;
             height: 64px;
+            border-radius: 20px;
             box-shadow: 0 8px 20px rgba(157, 78, 221, 0.4);
+            color: white;
+        }
+
+        .btn-primary .btn-label {
+            color: white;
         }
 
         .btn-primary:hover {
@@ -210,9 +306,9 @@
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
-            height: 4px;
-            background: var(--surface);
-            border-radius: 2px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
             outline: none;
         }
 
@@ -233,32 +329,62 @@
 
         /* Voice Selector */
         .voice-selector {
-            background: var(--surface);
+            background: #1e1e2d;
             border: 1px solid var(--glass-border);
-            color: var(--text);
-            padding: 8px 12px;
-            border-radius: 8px;
+            color: #ffffff;
+            padding: 10px 14px;
+            border-radius: 10px;
             outline: none;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             width: 100%;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
         }
 
-        /* Progress Bar */
+        .voice-selector option {
+            background: #1e1e2d;
+            color: #ffffff;
+            padding: 10px;
+        }
+
+        /* Progress Bars */
         .progress-container {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 4px;
-            background: var(--surface);
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
             cursor: pointer;
         }
 
         .progress-bar {
             height: 100%;
-            background: var(--primary);
+            background: linear-gradient(to right, var(--primary), var(--accent));
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .sentence-slider-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0 5px;
+        }
+
+        .sentence-counter {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            min-width: 80px;
+            text-align: right;
+            font-family: monospace;
         }
 
         /* Loading Overlay */
@@ -311,6 +437,10 @@
         <div class="spinner"></div>
     </div>
 
+    <button class="btn btn-primary menu-toggle" id="menuToggle">
+        <i data-lucide="menu"></i>
+    </button>
+
     <aside>
         <div class="sidebar-header">
             <h1><i data-lucide="book-open"></i> Telugu Granthalu</h1>
@@ -334,37 +464,56 @@
         </div>
 
         <div class="player-bar">
-            <div class="playback-controls">
-                <button class="btn" id="prevBtn" title="Previous Sentence">
-                    <i data-lucide="skip-back"></i>
-                </button>
-                <button class="btn btn-primary" id="playPauseBtn" title="Play/Pause">
-                    <i data-lucide="play" id="playIcon"></i>
-                </button>
-                <button class="btn" id="nextBtn" title="Next Sentence">
-                    <i data-lucide="skip-forward"></i>
-                </button>
-                <button class="btn" id="stopBtn" title="Stop">
-                    <i data-lucide="square"></i>
-                </button>
+            <div class="sentence-slider-container">
+                <input type="range" id="sentenceSlider" min="0" max="100" value="0">
+                <div class="sentence-counter" id="sentenceCounter">0 / 0</div>
             </div>
 
-            <div class="settings-controls">
-                <div class="setting-group">
-                    <div class="setting-label">Voice <span id="voiceVal"></span></div>
-                    <select class="voice-selector" id="voiceSelect"></select>
+            <div class="player-main-controls">
+                <div class="playback-controls">
+                    <button class="btn" id="restartBtn" title="Restart from Beginning">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span class="btn-label">Restart</span>
+                    </button>
+                    <button class="btn" id="prevBtn" title="Previous Sentence">
+                        <i data-lucide="skip-back"></i>
+                        <span class="btn-label">Prev</span>
+                    </button>
+                    <button class="btn btn-primary" id="playPauseBtn" title="Play/Pause">
+                        <i data-lucide="play" id="playIcon"></i>
+                        <span class="btn-label">Play</span>
+                    </button>
+                    <button class="btn" id="nextBtn" title="Next Sentence">
+                        <i data-lucide="skip-forward"></i>
+                        <span class="btn-label">Next</span>
+                    </button>
+                    <button class="btn" id="stopBtn" title="Stop">
+                        <i data-lucide="square"></i>
+                        <span class="btn-label">Stop</span>
+                    </button>
+                    <button class="btn menu-toggle" id="settingsToggle" style="display: none;">
+                        <i data-lucide="settings"></i>
+                        <span class="btn-label">Settings</span>
+                    </button>
                 </div>
-                <div class="setting-group">
-                    <div class="setting-label">Rate <span id="rateVal">1x</span></div>
-                    <input type="range" id="rateRange" min="0.1" max="2" step="0.1" value="1">
-                </div>
-                <div class="setting-group">
-                    <div class="setting-label">Pitch <span id="pitchVal">1x</span></div>
-                    <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1">
-                </div>
-                <div class="setting-group">
-                    <div class="setting-label">Volume <span id="volumeVal">100%</span></div>
-                    <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1">
+
+                <div class="settings-controls" id="settingsControls">
+                    <div class="setting-group">
+                        <div class="setting-label">Voice <span id="voiceVal"></span></div>
+                        <select class="voice-selector" id="voiceSelect"></select>
+                    </div>
+                    <div class="setting-group">
+                        <div class="setting-label">Rate <span id="rateVal">1.0x</span></div>
+                        <input type="range" id="rateRange" min="0.1" max="2" step="0.1" value="1">
+                    </div>
+                    <div class="setting-group">
+                        <div class="setting-label">Pitch <span id="pitchVal">1.0x</span></div>
+                        <input type="range" id="pitchRange" min="0" max="2" step="0.1" value="1">
+                    </div>
+                    <div class="setting-group">
+                        <div class="setting-label">Volume <span id="volumeVal">100%</span></div>
+                        <input type="range" id="volumeRange" min="0" max="1" step="0.1" value="1">
+                    </div>
                 </div>
             </div>
         </div>
@@ -400,6 +549,9 @@
             pitchRange: document.getElementById('pitchRange'),
             volumeRange: document.getElementById('volumeRange'),
             progressBar: document.getElementById('progressBar'),
+            sentenceSlider: document.getElementById('sentenceSlider'),
+            sentenceCounter: document.getElementById('sentenceCounter'),
+            restartBtn: document.getElementById('restartBtn'),
             loader: document.getElementById('loader')
         };
 
@@ -408,30 +560,49 @@
 
         // Cloud voice definitions (use /api/tts proxy)
         const CLOUD_VOICES = [
-            { name: "☁️ Telugu Female (Cloud)", lang: "te", type: "cloud" },
-            { name: "☁️ Telugu Male (Cloud)", lang: "te", type: "cloud" },
-            { name: "☁️ Hindi (Cloud)", lang: "hi", type: "cloud" },
-            { name: "☁️ English (Cloud)", lang: "en", type: "cloud" }
+            { name: "☁️ Telugu", lang: "te", type: "cloud" },
+            { name: "☁️ Hindi", lang: "hi", type: "cloud" },
+            { name: "☁️ English", lang: "en", type: "cloud" }
         ];
 
-        // Load & populate the voice dropdown (cloud only)
+        // Load & populate the voice dropdown
         function loadVoices() {
-            state.voices = synth.getVoices(); // keep loaded for fallback
+            state.voices = synth.getVoices();
 
-            // Show only cloud voices in the dropdown
-            el.voiceSelect.innerHTML = CLOUD_VOICES
-                .map((v, i) => `<option value="cloud:${i}">${v.name}</option>`)
-                .join('');
+            let options = [];
 
-            // Default select the first cloud Telugu voice
-            el.voiceSelect.value = 'cloud:0';
+            // 1. Add Cloud Voice (Google Translate Fallback) - Always keep as it's the most reliable fallback
+            options.push(`<option value="cloud:0">🌐 Telugu (Default Cloud)</option>`);
+
+            // 2. Add Native Telugu Voices
+            state.voices.forEach((v, i) => {
+                if (v.lang.startsWith('te')) {
+                    const isNatural = v.name.includes('Natural') || v.name.includes('Neural');
+                    const label = isNatural ? `✨ ${v.name} (High Quality)` : `👤 ${v.name}`;
+                    options.push(`<option value="native:${i}">${label}</option>`);
+                }
+            });
+
+            el.voiceSelect.innerHTML = options.join('');
+
+            // Try to auto-select a "Natural" native voice if it exists
+            const naturalVoiceIdx = state.voices.findIndex(v => v.lang.startsWith('te') && (v.name.includes('Natural') || v.name.includes('Neural')));
+            if (naturalVoiceIdx !== -1) {
+                el.voiceSelect.value = `native:${naturalVoiceIdx}`;
+            } else {
+                el.voiceSelect.value = 'cloud:0';
+            }
+
             lucide.createIcons();
         }
 
         if (synth.onvoiceschanged !== undefined) {
             synth.onvoiceschanged = loadVoices;
         }
-        loadVoices();
+        // Only call directly if voices are already available (avoids double-load)
+        if (synth.getVoices().length > 0) {
+            loadVoices();
+        }
 
 
         // API Calls
@@ -499,9 +670,14 @@
 
             el.textContent.innerHTML = html;
 
-            // Progress
+            // Progress (Top bar)
             const prog = ((state.currentIndex + 1) / state.sentences.length) * 100;
             el.progressBar.style.width = `${prog}%`;
+
+            // Sentence Slider
+            el.sentenceSlider.max = state.sentences.length - 1;
+            el.sentenceSlider.value = state.currentIndex;
+            el.sentenceCounter.innerText = `${state.currentIndex + 1} / ${state.sentences.length}`;
 
             // Save Progress
             localStorage.setItem(`read_pos_${state.currentFile}`, state.currentIndex);
@@ -512,12 +688,14 @@
             if (state.isPlaying) return;
             state.isPlaying = true;
             el.playIcon.setAttribute('data-lucide', 'pause');
+            el.playPauseBtn.querySelector('.btn-label').innerText = 'Pause';
             lucide.createIcons();
             speakCurrent();
         }
 
         // Cloud audio player
         let cloudAudio = null;
+        let isSpeaking = false; // mutex to prevent double-speak
 
         function stopCloudAudio() {
             if (cloudAudio) {
@@ -531,25 +709,37 @@
 
         function pause() {
             state.isPlaying = false;
+            isSpeaking = false;
             stopCloudAudio();
             el.playIcon.setAttribute('data-lucide', 'play');
+            el.playPauseBtn.querySelector('.btn-label').innerText = 'Play';
             lucide.createIcons();
         }
 
         function stop() {
             state.isPlaying = false;
+            isSpeaking = false;
             stopCloudAudio();
             el.playIcon.setAttribute('data-lucide', 'play');
+            el.playPauseBtn.querySelector('.btn-label').innerText = 'Play';
             lucide.createIcons();
         }
 
         function speakCurrent() {
             if (!state.isPlaying || state.currentIndex >= state.sentences.length) {
                 state.isPlaying = false;
+                isSpeaking = false;
                 el.playIcon.setAttribute('data-lucide', 'play');
                 lucide.createIcons();
                 return;
             }
+
+            // Guard against re-entrant double calls
+            if (isSpeaking) return;
+            isSpeaking = true;
+
+            // Always stop any existing audio before starting new
+            stopCloudAudio();
 
             const text = state.sentences[state.currentIndex];
             const voiceVal = el.voiceSelect.value; // e.g. "cloud:0" or "native:3"
@@ -560,12 +750,16 @@
                 const encodedText = encodeURIComponent(text.substring(0, 200));
                 const ttsUrl = `/api/tts?lang=${cloudVoice.lang}&text=${encodedText}`;
 
-                stopCloudAudio();
                 cloudAudio = new Audio(ttsUrl);
                 cloudAudio.volume = state.volume;
                 cloudAudio.playbackRate = Math.min(Math.max(state.rate, 0.5), 4);
 
-                cloudAudio.onended = () => {
+                // Capture a reference to THIS audio object to avoid stale closures
+                const thisAudio = cloudAudio;
+
+                thisAudio.onended = () => {
+                    if (cloudAudio !== thisAudio) return; // stale event, ignore
+                    isSpeaking = false;
                     if (state.isPlaying) {
                         state.currentIndex++;
                         updateDisplay();
@@ -573,15 +767,27 @@
                     }
                 };
 
-                cloudAudio.onerror = () => {
-                    console.error('Cloud TTS error, falling back to native');
-                    // Auto-fall back to native speech if cloud fails
-                    el.voiceSelect.value = state.voices.length > 0 ? 'native:0' : 'cloud:0';
-                    speakCurrent();
+                thisAudio.onerror = () => {
+                    if (cloudAudio !== thisAudio) return; // stale event, ignore
+                    console.error('Cloud TTS error, falling back to native speech');
+                    isSpeaking = false;
+                    // Switch to first native voice if available, else stop
+                    if (state.voices.length > 0) {
+                        el.voiceSelect.innerHTML = state.voices
+                            .map((v, i) => `<option value="native:${i}">${v.name}</option>`)
+                            .join('');
+                        el.voiceSelect.value = 'native:0';
+                        speakCurrent();
+                    } else {
+                        state.isPlaying = false;
+                        el.playIcon.setAttribute('data-lucide', 'play');
+                        lucide.createIcons();
+                    }
                 };
 
-                cloudAudio.play().catch(e => {
+                thisAudio.play().catch(e => {
                     console.error('Audio play error:', e);
+                    isSpeaking = false;
                     state.isPlaying = false;
                     el.playIcon.setAttribute('data-lucide', 'play');
                     lucide.createIcons();
@@ -597,6 +803,7 @@
                 utterance.volume = state.volume;
 
                 utterance.onend = () => {
+                    isSpeaking = false;
                     if (state.isPlaying) {
                         state.currentIndex++;
                         updateDisplay();
@@ -605,12 +812,13 @@
                 };
 
                 utterance.onerror = (e) => {
+                    isSpeaking = false;
                     if (e.error !== 'interrupted') {
                         console.error('Speech Error', e.error);
+                        state.isPlaying = false;
+                        el.playIcon.setAttribute('data-lucide', 'play');
+                        lucide.createIcons();
                     }
-                    state.isPlaying = false;
-                    el.playIcon.setAttribute('data-lucide', 'play');
-                    lucide.createIcons();
                 };
 
                 synth.speak(utterance);
@@ -632,14 +840,27 @@
             if (state.isPlaying) speakCurrent();
         };
 
-        el.prevBtn.onclick = () => {
+        el.restartBtn.onclick = () => {
             stop();
-            state.currentIndex = Math.max(0, state.currentIndex - 1);
+            state.currentIndex = 0;
             updateDisplay();
-            if (state.isPlaying) speakCurrent();
         };
 
         el.stopBtn.onclick = stop;
+
+        // Slider interaction
+        el.sentenceSlider.oninput = (e) => {
+            const idx = parseInt(e.target.value);
+            state.currentIndex = idx;
+            updateDisplay();
+        };
+
+        el.sentenceSlider.onchange = () => {
+            if (state.isPlaying) {
+                isSpeaking = false; // reset mutex for jump
+                speakCurrent();
+            }
+        };
 
         // Settings Listeners
         el.rateRange.oninput = (e) => {
@@ -654,6 +875,36 @@
             state.volume = parseFloat(e.target.value);
             document.getElementById('volumeVal').innerText = Math.round(state.volume * 100) + "%";
         };
+
+        // Mobile Menu Toggle
+        const menuToggle = document.getElementById('menuToggle');
+        const aside = document.querySelector('aside');
+        menuToggle.onclick = () => {
+            aside.classList.toggle('open');
+            const icon = menuToggle.querySelector('i');
+            const isOpen = aside.classList.contains('open');
+            icon.setAttribute('data-lucide', isOpen ? 'x' : 'menu');
+            lucide.createIcons();
+        };
+
+        // Settings Toggle (for mobile)
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsControls = document.getElementById('settingsControls');
+        if (window.innerWidth <= 768) settingsToggle.style.display = 'flex';
+        settingsToggle.onclick = () => {
+            settingsControls.classList.toggle('open');
+        };
+
+        // Close menu/settings when clicking outside or on a file
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                if (!aside.contains(e.target) && !menuToggle.contains(e.target) && aside.classList.contains('open')) {
+                    aside.classList.remove('open');
+                    menuToggle.querySelector('i').setAttribute('data-lucide', 'menu');
+                    lucide.createIcons();
+                }
+            }
+        });
 
         fetchFiles();
     </script>
